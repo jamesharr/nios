@@ -19,7 +19,7 @@ def _get_method(rv):
     """
     def _lambda():
         return rv
-    return _get_method
+    return _lambda
 
 
 class NIOS (object):
@@ -28,20 +28,24 @@ class NIOS (object):
         self.nios_username = nios_username
         self.nios_password = nios_password
 
-    def prompt_nios_credentials(self):
-        nios_user = prompt_input("NIOS username", getpass.getuser())
-        nios_pass = getpass.getpass()
-        self.set_nios_credentials(nios_user, nios_pass)
-        if not self.test_nios_credentials():
-            print " - Login to NIOS failed"
-        else:
-            break
+    def prompt_credentials(self):
+        """Interact with the user to get credentials"""
+        while True:
+            nios_user = prompt_input("NIOS username", getpass.getuser())
+            nios_pass = getpass.getpass()
+            self.set_credentials(nios_user, nios_pass)
+            if not self.test_credentials():
+                print " - Login to NIOS failed"
+            else:
+                print " - Login success"
+                break
+        return True
 
-    def set_nios_credentials(self, username, password):
+    def set_credentials(self, username, password):
         self.nios_username = username
         self.nios_password = password
 
-    def test_nios_credentials(self):
+    def test_credentials(self):
         try:
             self.get('record:host', _max_results=1)
         except urllib2.HTTPError, e:
@@ -65,6 +69,34 @@ class NIOS (object):
         # request.add_header('Content-Type', 'application/json')
         base64string = base64.standard_b64encode('%s:%s' % (self.nios_username, self.nios_password))
         request.add_header("Authorization", "Basic %s" % base64string)
+
+        opener = urllib2.build_opener(urllib2.HTTPHandler)
+        result = opener.open(request)
+        json_text = result.read()
+
+        return json.loads(json_text)
+
+    def post(self, obj, data, **params):
+        """
+        obj - object name. Example: record:host
+        data - dict of object data.
+        params - request parameters
+        """
+
+        default_params = {
+            '_return_type': 'json-pretty'
+        }
+        full_params = dict()
+        full_params.update(default_params)
+        full_params.update(params)
+        query_string = urllib.urlencode(full_params)
+
+        request = urllib2.Request(self.nios_url + "wapi/v1.4/" + obj + "?" + query_string)
+        request.get_method = _get_method("POST")
+        request.add_header('Content-Type', 'application/json')
+        base64string = base64.standard_b64encode('%s:%s' % (self.nios_username, self.nios_password))
+        request.add_header("Authorization", "Basic %s" % base64string)
+        request.add_data(json.dumps(data))
 
         opener = urllib2.build_opener(urllib2.HTTPHandler)
         result = opener.open(request)
