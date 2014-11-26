@@ -104,6 +104,34 @@ class NIOS (object):
 
         return json.loads(json_text)
 
+    def put(self, obj, data, **params):
+        """
+        obj - object name. Example: record:host
+        data - dict of object data to be updated.
+        params - request parameters
+        """
+
+        default_params = {
+            '_return_type': 'json-pretty'
+        }
+        full_params = dict()
+        full_params.update(default_params)
+        full_params.update(params)
+        query_string = urllib.urlencode(full_params)
+
+        request = urllib2.Request(self.nios_url + "wapi/v1.4/" + obj + "?" + query_string)
+        request.get_method = _get_method("PUT")
+        request.add_header('Content-Type', 'application/json')
+        base64string = base64.standard_b64encode('%s:%s' % (self.nios_username, self.nios_password))
+        request.add_header("Authorization", "Basic %s" % base64string)
+        request.add_data(json.dumps(data))
+
+        opener = urllib2.build_opener(urllib2.HTTPHandler)
+        result = opener.open(request)
+        json_text = result.read()
+
+        return json.loads(json_text)
+
 
 def prompt_input(prompt, default=""):
     if default != "":
